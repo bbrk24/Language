@@ -1,16 +1,19 @@
 import RegexBuilder
 
 extension Lexer {
-    enum TokenKind: String, CaseIterable, Codable {
+    enum TokenKind: String, CaseIterable, Codable, Hashable {
         // Trivia
         case whitespace
         case lineComment
         case blockComment
-        case shebang
         // Keywords
         case `return`
         case whileLoop
         case `false`
+        case trait
+        case productType
+        case impl
+        case sumType
         case `else`
         case null
         case `true`
@@ -49,6 +52,11 @@ extension Lexer {
         case colon
         case greater
         case less
+        case dot
+
+        static func ~= (lhs: Set<Lexer.TokenKind>, rhs: Lexer.TokenKind) -> Bool {
+            return lhs.contains(rhs)
+        }
 
         fileprivate static let digits = Regex {
             CharacterClass.digit
@@ -81,13 +89,6 @@ extension Lexer.TokenKind {
                 })
                 "*/"
             }
-        case .shebang:
-            return .init {
-                "#!"
-                ZeroOrMore(.horizontalWhitespace)
-                "/"
-                OneOrMore(.newlineSequence.inverted)
-            }
         case .return:
             return .init {
                 Anchor.wordBoundary
@@ -104,6 +105,30 @@ extension Lexer.TokenKind {
             return .init {
                 Anchor.wordBoundary
                 "false"
+                Anchor.wordBoundary
+            }
+        case .trait:
+            return .init {
+                Anchor.wordBoundary
+                "trait"
+                Anchor.wordBoundary
+            }
+        case .productType:
+            return .init {
+                Anchor.wordBoundary
+                "struct"
+                Anchor.wordBoundary
+            }
+        case .impl:
+            return .init {
+                Anchor.wordBoundary
+                "impl"
+                Anchor.wordBoundary
+            }
+        case .sumType:
+            return .init {
+                Anchor.wordBoundary
+                "enum"
                 Anchor.wordBoundary
             }
         case .else:
@@ -252,6 +277,8 @@ extension Lexer.TokenKind {
             return Regex(verbatim: ">")
         case .less:
             return Regex(verbatim: "<")
+        case .dot:
+            return Regex(verbatim: ".")
         }
     }
 }

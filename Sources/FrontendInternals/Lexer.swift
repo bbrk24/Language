@@ -26,10 +26,10 @@ public enum Lexer {
         var text: String
     }
 
-    public static func lex(source: String, fileName: String) throws -> [Token] {
+    public static func lex(source: String, fileName: String) throws -> TokenCollection {
         var line: UInt = 1, col: UInt = 1
         var unlexedSource = source[...]
-        var result = Array<Token>()
+        var result = TokenCollection()
 
         while !unlexedSource.isEmpty {
             guard let (match, kind) = TokenKind.allCases.lazy.compactMap({ kind in
@@ -53,6 +53,21 @@ public enum Lexer {
         }
 
         return result
+    }
+
+    // TODO: Should this be a queue type?
+    // Must satisfy RangeReplaceableCollection<Token> & Codable
+    public typealias TokenCollection = [Token]
+}
+
+extension Lexer.TokenCollection {
+    mutating func popFirst() -> Lexer.Token? {
+        if let first {
+            removeFirst()
+            return first
+        } else {
+            return nil
+        }
     }
 }
 
