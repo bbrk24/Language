@@ -1,5 +1,5 @@
-enum Lexer {
-    struct Token {
+public enum Lexer {
+    public struct Token {
         var startLoc: SourceLocation
         var kind: TokenKind
         var text: Substring
@@ -26,7 +26,7 @@ enum Lexer {
         var text: String
     }
 
-    static func lex(source: String, fileName: String) throws -> [Token] {
+    public static func lex(source: String, fileName: String) throws -> [Token] {
         var line: UInt = 1, col: UInt = 1
         var unlexedSource = source[...]
         var result = Array<Token>()
@@ -57,14 +57,14 @@ enum Lexer {
 }
 
 extension Lexer.Token: Codable {
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.startLoc = try container.decode(SourceLocation.self, forKey: .startLoc)
         self.kind = try container.decode(Lexer.TokenKind.self, forKey: .kind)
         self.text = try container.decode(String.self, forKey: .text)[...]
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(startLoc, forKey: .startLoc)
         try container.encode(kind, forKey: .kind)

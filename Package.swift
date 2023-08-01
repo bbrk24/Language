@@ -7,9 +7,15 @@ let package = Package(
     products: [
         .library(name: "LanguageFrontendInternals", targets: ["LanguageFrontendInternals"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.2.0"))
+    ],
     targets: [
         .target(
             name: "LanguageFrontendInternals",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
+            ],
             path: "Sources/FrontendInternals"
         ),
         .executableTarget(
