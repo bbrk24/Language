@@ -32,7 +32,7 @@ extension SyntaxTree {
 
     @discardableResult
     static func assertStarts(_ tokens: inout Lexer.TokenCollection, with kinds: Set<Lexer.TokenKind>) throws -> Lexer.Token {
-        let first = tokens.first
+        let first = tokens.popFirst()
         guard let first, kinds.contains(first.kind) else {
             throw UnexpectedToken(found: first, expected: kinds)
         }

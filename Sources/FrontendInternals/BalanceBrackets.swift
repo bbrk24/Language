@@ -7,7 +7,7 @@ extension SyntaxTree {
         close: Lexer.TokenKind
     ) throws -> [Lexer.Token] {
         tokens.discardLeadingTrivia()
-        try assertStarts(&tokens, with: [.openParen])
+        try assertStarts(&tokens, with: [open])
 
         var parenCount = 1
         var expr = Array<Lexer.Token>()
@@ -17,9 +17,9 @@ extension SyntaxTree {
             }
 
             switch next.kind {
-            case .openParen:
+            case open:
                 parenCount += 1
-            case .closeParen:
+            case close:
                 parenCount -= 1
                 if parenCount == 0 {
                     break loop

@@ -6,7 +6,7 @@ public enum SyntaxTree {
         case stringLiteral(String)
         case numberLiteral(Double)
         case identifier(String)
-        case indexAccess(base: Expression, index: Expression)
+        case indexAccess(base: Expression, index: [Expression])
         case propertyAccess(base: Expression, property: String)
         case functionCall(function: String, arguments: [Expression])
     }
@@ -41,6 +41,7 @@ public enum SyntaxTree {
         case ifElse(condition: Expression, trueBody: [Statement], falseBody: [Statement])
         case `return`(Expression?)
         case expression(Expression)
+        case implBlock(type: String, traits: [String], body: [_Declaration])
     }
 
     public enum _Declaration: Codable {
@@ -87,13 +88,13 @@ public enum SyntaxTree {
                 result.append(.declaration(.func(
                     name: name,
                     parameters: try parseArgumentList(parameters),
-                    returnType: returnType.isEmpty ? nil : try shuntingYard(returnType),
+                    returnType: returnType.isEmpty ? nil : try parseType(returnType),
                     body: try pass2(body)
                 )))
             case .varDecl(name: let name, type: let type, initialValue: let initialValue):
                 result.append(.declaration(.var(
                     name: name,
-                    type: type.isEmpty ? nil : try shuntingYard(type),
+                    type: type.isEmpty ? nil : try parseType(type),
                     initialValue: initialValue.isEmpty ? nil : try shuntingYard(initialValue)
                 )))
             case .return(let expr):
@@ -104,6 +105,12 @@ public enum SyntaxTree {
                 }
             case .unparsedExpr(let expr):
                 result.append(.expression(try shuntingYard(expr)))
+            case .implBlock(type: let type, traits: let traits, body: let body):
+                result.append(.implBlock(
+                    type: type,
+                    traits: try parseCommaSeparatedIdentifiers(traits),
+                    body: try parseDeclsOnly(body)
+                ))
             }
         }
 

@@ -8,20 +8,22 @@ let package = Package(
         .library(name: "LanguageFrontendInternals", targets: ["LanguageFrontendInternals"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.2.0"))
+        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.2.0")),
+        .package(url: "https://github.com/apple/swift-algorithms", .upToNextMajor(from: "1.0.0"))
     ],
     targets: [
         .target(
             name: "LanguageFrontendInternals",
             dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser")
+                .product(name: "Algorithms", package: "swift-algorithms")
             ],
             path: "Sources/FrontendInternals"
         ),
         .executableTarget(
             name: "LanguageFrontendCLI",
             dependencies: [
-                .target(name: "LanguageFrontendInternals")
+                .target(name: "LanguageFrontendInternals"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/FrontendCLI"
         ),
