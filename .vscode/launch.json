@@ -23,6 +23,54 @@
             "args": [],
             "cwd": "${workspaceFolder:language}",
             "preLaunchTask": "swift: Build Release language"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug Language",
+            "program": "${workspaceFolder:language}/.build/debug/Language",
+            "args": [],
+            "cwd": "${workspaceFolder:language}",
+            "preLaunchTask": "swift: Build Debug Language"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release Language",
+            "program": "${workspaceFolder:language}/.build/release/Language",
+            "args": [],
+            "cwd": "${workspaceFolder:language}",
+            "preLaunchTask": "swift: Build Release Language"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Debug LanguageTests",
+            "program": "${workspaceFolder:language}/.build/debug/LanguageTests",
+            "args": [],
+            "cwd": "${workspaceFolder:language}",
+            "preLaunchTask": "swift: Build Debug LanguageTests"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "sourceLanguages": [
+                "swift"
+            ],
+            "name": "Release LanguageTests",
+            "program": "${workspaceFolder:language}/.build/release/LanguageTests",
+            "args": [],
+            "cwd": "${workspaceFolder:language}",
+            "preLaunchTask": "swift: Build Release LanguageTests"
         }
     ]
 }
