@@ -1,5 +1,15 @@
 extension SyntaxTree {
-    struct UnexpectedEOF: Error {}
+    struct UnexpectedEOF: Error, CustomStringConvertible {
+        var file: String?
+
+        var description: String {
+            if let file {
+                return "\(file): Unexpected EOF"
+            } else {
+                return "Unexpected EOF"
+            }
+        }
+    }
 
     private static func parseGroup(
         _ tokens: inout Lexer.TokenCollection,

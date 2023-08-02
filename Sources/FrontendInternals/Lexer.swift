@@ -1,3 +1,5 @@
+import DequeModule
+
 public enum Lexer {
     public struct Token {
         var startLoc: SourceLocation
@@ -21,9 +23,13 @@ public enum Lexer {
         }
     }
 
-    struct UnrecognizedToken: Error {
+    struct UnrecognizedToken: Error, CustomStringConvertible {
         var loc: SourceLocation
         var text: String
+
+        var description: String {
+            "\(loc): Unrecognized token \"\(text)\""
+        }
     }
 
     public static func lex(source: String, fileName: String) throws -> TokenCollection {
@@ -55,20 +61,7 @@ public enum Lexer {
         return result
     }
 
-    // TODO: Should this be a queue type?
-    // Must satisfy RangeReplaceableCollection<Token> & Codable
-    public typealias TokenCollection = [Token]
-}
-
-extension Lexer.TokenCollection {
-    mutating func popFirst() -> Lexer.Token? {
-        if let first {
-            removeFirst()
-            return first
-        } else {
-            return nil
-        }
-    }
+    public typealias TokenCollection = Deque<Token>
 }
 
 extension Lexer.Token: Codable {

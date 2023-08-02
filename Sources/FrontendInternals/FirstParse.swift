@@ -25,15 +25,22 @@ extension SyntaxTree {
         case unparsedExpr([Token])
     }
 
-    struct UnexpectedToken: Error {
-        var found: Lexer.Token?
+    struct UnexpectedToken: Error, CustomStringConvertible {
+        var found: Lexer.Token
         var expected: Set<Lexer.TokenKind>
+
+        var description: String {
+            "\(found.startLoc): Unexpected \(found.kind) token (expected one of: \(expected))"
+        }
     }
 
     @discardableResult
     static func assertStarts(_ tokens: inout Lexer.TokenCollection, with kinds: Set<Lexer.TokenKind>) throws -> Lexer.Token {
         let first = tokens.popFirst()
-        guard let first, kinds.contains(first.kind) else {
+        guard let first else {
+            throw UnexpectedEOF()
+        }
+        guard kinds.contains(first.kind) else {
             throw UnexpectedToken(found: first, expected: kinds)
         }
         return first
@@ -61,7 +68,7 @@ extension SyntaxTree {
         }
 
         // Off-by-one error
-        tokens = CollectionOfOne(tkn) + tokens
+        tokens.prepend(tkn)
 
         return refiningList
     }
@@ -180,12 +187,13 @@ extension SyntaxTree {
             case .if:
                 result.append(try parseIfElse(&tokens))
             case .return:
-                tokens.removeFirst() // 'return'
+                let file = tokens.removeFirst() // 'return'
+                    .startLoc.file
 
                 var exprTokens = Array<Lexer.Token>()
                 while tokens.first?.kind != .semicolon {
                     guard let next = tokens.popFirst() else {
-                        throw UnexpectedEOF()
+                        throw UnexpectedEOF(file: file)
                     }
                     exprTokens.append(next)
                 }
@@ -196,12 +204,14 @@ extension SyntaxTree {
                 throw UnexpectedToken(
                     found: first,
                     expected: Set(Lexer.TokenKind.allCases).subtracting(cannotStartStatement)
+                        .subtracting([.whitespace, .lineComment, .blockComment])
                 )
             default:
+                let file = first.startLoc.file
                 var exprTokens = Array<Lexer.Token>()
                 while tokens.first?.kind != .semicolon {
                     guard let next = tokens.popFirst() else {
-                        throw UnexpectedEOF()
+                        throw UnexpectedEOF(file: file)
                     }
                     exprTokens.append(next)
                 }

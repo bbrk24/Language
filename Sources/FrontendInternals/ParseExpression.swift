@@ -12,11 +12,11 @@ extension SyntaxTree {
         try withoutTrivia(tokens)
             .chunks(ofCount: 2)
             .map {
-                if $0.first?.kind != .identifier {
-                    throw UnexpectedToken(found: $0.first, expected: [.identifier])
+                if $0.first!.kind != .identifier {
+                    throw UnexpectedToken(found: $0.first!, expected: [.identifier])
                 }
                 if $0.count > 1 && $0.last!.kind != .comma {
-                    throw UnexpectedToken(found: $0.last, expected: [.comma])
+                    throw UnexpectedToken(found: $0.last!, expected: [.comma])
                 }
                 return String($0.first!.text)
             }
@@ -26,14 +26,24 @@ extension SyntaxTree {
         case paren, bracket
     }
 
-    struct UnexpectedEndOfList: Error {}
+    struct UnexpectedEndOfList: Error, CustomStringConvertible {
+        var location: SourceLocation
+
+        var description: String {
+            "\(location): Unexpected end of argument list"
+        }
+    }
 
     static func parseArgumentList(_ tokens: [Lexer.Token]) throws -> [_NameAndType] {
+        guard let lastToken = tokens.last else {
+            return []
+        }
+
         var pairs = Array<(String, Expression)>()
 
         var name: String? = nil
         var seenColon = false
-        var typeStack = Array<PairType>()
+        var bracketStack = Array<PairType>()
         var currentExpression = Array<Lexer.Token>()
 
         for token in withoutTrivia(tokens) {
@@ -55,33 +65,33 @@ extension SyntaxTree {
 
             switch token.kind {
             case .openParen:
-                typeStack.append(.paren)
+                bracketStack.append(.paren)
             case .closeParen:
-                if typeStack.last != .paren {
+                if bracketStack.last != .paren {
                     var expected: Set<Lexer.TokenKind> = [
                         .identifier, .comma, .leftBracket, .openParen
                     ]
-                    if typeStack.last == .bracket {
+                    if bracketStack.last == .bracket {
                         expected.insert(.rightBracket)
                     }
                     throw UnexpectedToken(found: token, expected: expected)
                 }
-                typeStack.removeLast()
+                bracketStack.removeLast()
             case .leftBracket:
-                typeStack.append(.bracket)
+                bracketStack.append(.bracket)
             case .rightBracket:
-                if typeStack.last != .bracket {
+                if bracketStack.last != .bracket {
                     var expected: Set<Lexer.TokenKind> = [
                         .identifier, .comma, .leftBracket, .openParen
                     ]
-                    if typeStack.last == .paren {
+                    if bracketStack.last == .paren {
                         expected.insert(.closeParen)
                     }
                     throw UnexpectedToken(found: token, expected: expected)
                 }
-                typeStack.removeLast()
+                bracketStack.removeLast()
             case .comma:
-                if !typeStack.isEmpty {
+                if !bracketStack.isEmpty {
                     break
                 }
                 let type = try parseType(currentExpression)
@@ -99,7 +109,7 @@ extension SyntaxTree {
         }
 
         if name != nil || !currentExpression.isEmpty {
-            throw UnexpectedEndOfList()
+            throw UnexpectedEndOfList(location: lastToken.endLoc)
         }
 
         return pairs.map { .init(name: $0, type: $1) }

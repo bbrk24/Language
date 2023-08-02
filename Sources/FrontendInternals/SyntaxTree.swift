@@ -58,7 +58,14 @@ public enum SyntaxTree {
     }
 
     public static func parse(_ tokens: __owned Lexer.TokenCollection) throws -> [Statement] {
-        return try pass2(try pass1(tokens))
+        let file = tokens.first?.startLoc.file
+        var partialResult: [PartiallyParsedStatement]
+        do {
+            partialResult = try pass1(tokens)
+        } catch let error as UnexpectedEOF where error.file == nil {
+            throw UnexpectedEOF(file: file)
+        }
+        return try pass2(partialResult)
     }
 
     static func pass2(_ statements: [PartiallyParsedStatement]) throws -> [Statement] {
@@ -117,8 +124,13 @@ public enum SyntaxTree {
         return result
     }
 
-    struct UnexpectedStatement: Error {
+    struct UnexpectedStatement: Error, CustomStringConvertible {
+        // TODO: Make this more helpful
         var saw: Statement
+
+        var description: String {
+            "Types may only contain declarations, not expressions."
+        }
     }
 
     private static func parseDeclsOnly(_ statements: [PartiallyParsedStatement]) throws -> [_Declaration] {

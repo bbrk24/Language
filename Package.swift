@@ -9,13 +9,15 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.2.0")),
-        .package(url: "https://github.com/apple/swift-algorithms", .upToNextMajor(from: "1.0.0"))
+        .package(url: "https://github.com/apple/swift-algorithms", .upToNextMajor(from: "1.0.0")),
+        .package(url: "https://github.com/apple/swift-collections", .upToNextMajor(from: "1.0.0"))
     ],
     targets: [
         .target(
             name: "LanguageFrontendInternals",
             dependencies: [
-                .product(name: "Algorithms", package: "swift-algorithms")
+                .product(name: "Algorithms", package: "swift-algorithms"),
+                .product(name: "DequeModule", package: "swift-collections")
             ],
             path: "Sources/FrontendInternals"
         ),
