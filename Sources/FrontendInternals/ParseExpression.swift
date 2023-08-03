@@ -1,7 +1,7 @@
 import Algorithms
 
 extension SyntaxTree {
-    private static func withoutTrivia(_ tokens: [Lexer.Token]) -> some BidirectionalCollection<Lexer.Token> {
+    static func withoutTrivia(_ tokens: [Lexer.Token]) -> some BidirectionalCollection<Lexer.Token> {
         tokens.lazy
             .filter {
                 $0.kind != .blockComment && $0.kind != .lineComment && $0.kind != .whitespace
@@ -39,7 +39,7 @@ extension SyntaxTree {
             return []
         }
 
-        var pairs = Array<(String, Expression)>()
+        var pairs = Array<(String, _Type)>()
 
         var name: String? = nil
         var seenColon = false
@@ -128,7 +128,7 @@ extension SyntaxTree {
             case .comma:
                 throw IncompleteType()
             case .identifier(let name):
-                return .identifier(name)
+                return .indivisible(.identifier(name))
             case .indexed(let base, let indexes):
                 return try .indexAccess(
                     base: base.toExpr(),
@@ -143,7 +143,7 @@ extension SyntaxTree {
         }
     }
 
-    static func parseType(_ tokens: [Lexer.Token]) throws -> Expression {
+    static func parseType(_ tokens: [Lexer.Token]) throws -> _Type {
         // Type parsing is limited. Only the following expression kinds are allowed:
         // Identifier - Foo
         // Index access - Foo[Bar] OR Foo[Bar, Baz]
@@ -151,7 +151,11 @@ extension SyntaxTree {
         notImplemented()
     }
 
-    static func shuntingYard(_ tokens: [Lexer.Token]) throws -> Expression {
+    static func parseFullExpression(_ tokens: [Lexer.Token]) throws -> Expression {
+        notImplemented()
+    }
+
+    static func parseTypeList(_ tokens: [Lexer.Token]) throws -> [_Type] {
         notImplemented()
     }
 }
