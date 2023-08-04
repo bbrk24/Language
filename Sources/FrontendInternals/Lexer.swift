@@ -32,10 +32,10 @@ public enum Lexer {
         }
     }
 
-    public static func lex(source: String, fileName: String) throws -> TokenCollection {
+    public static func lex(source: String, fileName: String) throws -> Deque<Token> {
         var line: UInt = 1, col: UInt = 1
         var unlexedSource = source[...]
-        var result = TokenCollection()
+        var result = Deque<Token>()
 
         while !unlexedSource.isEmpty {
             guard let (match, kind) = TokenKind.allCases.lazy.compactMap({ kind in
@@ -60,8 +60,6 @@ public enum Lexer {
 
         return result
     }
-
-    public typealias TokenCollection = Deque<Token>
 }
 
 extension Lexer.Token: Codable {

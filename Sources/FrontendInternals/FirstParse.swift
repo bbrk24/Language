@@ -1,3 +1,5 @@
+import DequeModule
+
 extension RangeReplaceableCollection
 where Element == Lexer.Token {
     mutating func discardLeadingTrivia() {
@@ -13,16 +15,16 @@ extension SyntaxTree {
     enum PartiallyParsedStatement {
         typealias Token = Lexer.Token
 
-        case whileLoop(condition: [Token], body: [PartiallyParsedStatement])
-        case traitDecl(name: String, refining: [Token], body: [PartiallyParsedStatement])
+        case whileLoop(condition: Deque<Token>, body: [PartiallyParsedStatement])
+        case traitDecl(name: String, refining: Deque<Token>, body: [PartiallyParsedStatement])
         case structDecl(name: String, body: [PartiallyParsedStatement])
-        case implBlock(type: String, traits: [Token], body: [PartiallyParsedStatement])
-        case enumDecl(name: String, body: [Token])
-        case ifElse(condition: [Lexer.Token], trueBody: [PartiallyParsedStatement], falseBody: [PartiallyParsedStatement])
-        case funcDecl(name: String, parameters: [Token], returnType: [Token], body: [PartiallyParsedStatement])
-        case varDecl(name: String, type: [Token], initialValue: [Token])
-        case `return`([Token])
-        case unparsedExpr([Token])
+        case implBlock(type: String, traits: Deque<Token>, body: [PartiallyParsedStatement])
+        case enumDecl(name: String, body: Deque<Token>)
+        case ifElse(condition: Deque<Token>, trueBody: [PartiallyParsedStatement], falseBody: [PartiallyParsedStatement])
+        case funcDecl(name: String, parameters: Deque<Token>, returnType: Deque<Token>, body: [PartiallyParsedStatement])
+        case varDecl(name: String, type: Deque<Token>, initialValue: Deque<Token>)
+        case `return`(Deque<Token>)
+        case unparsedExpr(Deque<Token>)
     }
 
     struct UnexpectedToken: Error, CustomStringConvertible {
@@ -35,7 +37,7 @@ extension SyntaxTree {
     }
 
     @discardableResult
-    static func assertStarts(_ tokens: inout Lexer.TokenCollection, with kinds: Set<Lexer.TokenKind>) throws -> Lexer.Token {
+    static func assertStarts(_ tokens: inout Deque<Lexer.Token>, with kinds: Set<Lexer.TokenKind>) throws -> Lexer.Token {
         let first = tokens.popFirst()
         guard let first else {
             throw UnexpectedEOF()
@@ -47,13 +49,13 @@ extension SyntaxTree {
     }
 
     static func parseOptionalNonNested(
-        _ tokens: inout Lexer.TokenCollection,
+        _ tokens: inout Deque<Lexer.Token>,
         from startToken: Lexer.TokenKind,
         to endTokens: Set<Lexer.TokenKind>
-    ) throws -> [Lexer.Token] {
+    ) throws -> Deque<Lexer.Token> {
         tokens.discardLeadingTrivia()
         var tkn = try assertStarts(&tokens, with: endTokens.union([.colon]))
-        var refiningList = Array<Lexer.Token>()
+        var refiningList = Deque<Lexer.Token>()
         if tkn.kind == startToken {
             while true {
                 guard let next = tokens.popFirst() else {
@@ -73,13 +75,13 @@ extension SyntaxTree {
         return refiningList
     }
 
-    private static let cannotStartStatement: Set<Lexer.TokenKind> = [
+    static let cannotStartStatement: Set<Lexer.TokenKind> = [
         .else, .equals, .notEquals, .and, .or, .coalesce, .exponent, .lessEqual, .greaterEqual,
         .assign, .star, .slash, .percent, .comma, .colon, .greater, .less, .dot, .closeBrace,
         .closeParen, .rightBracket, .openBrace
     ]
 
-    private static func parseIfElse(_ tokens: inout Lexer.TokenCollection) throws -> PartiallyParsedStatement {
+    static func parseIfElse(_ tokens: inout Deque<Lexer.Token>) throws -> PartiallyParsedStatement {
         tokens.removeFirst() // 'if'
         let condition = try parseParenGroup(&tokens)
         let trueBodyTokens = try parseBraceGroup(&tokens)
@@ -93,16 +95,16 @@ extension SyntaxTree {
                 falseBody = [try parseIfElse(&tokens)]
             } else {
                 let falseBodyTokens = try parseBraceGroup(&tokens)
-                falseBody = try pass1(.init(falseBodyTokens))
+                falseBody = try pass1(falseBodyTokens)
             }
         }
 
-        let trueBody = try pass1(.init(trueBodyTokens))
+        let trueBody = try pass1(trueBodyTokens)
 
         return .ifElse(condition: condition, trueBody: trueBody, falseBody: falseBody)
     }
 
-    static func pass1(_ tokens: __owned Lexer.TokenCollection) throws -> [PartiallyParsedStatement] {
+    static func pass1(_ tokens: __owned Deque<Lexer.Token>) throws -> [PartiallyParsedStatement] {
         var tokens = tokens
         var result = Array<PartiallyParsedStatement>()
 
@@ -115,7 +117,7 @@ extension SyntaxTree {
                 
                 let condition = try parseParenGroup(&tokens)
                 let bodyTokens = try parseBraceGroup(&tokens)
-                let body = try pass1(.init(bodyTokens))
+                let body = try pass1(bodyTokens)
 
                 result.append(.whileLoop(condition: condition, body: body))
             case .trait:
@@ -126,7 +128,7 @@ extension SyntaxTree {
                 let refiningList = try parseOptionalNonNested(&tokens, from: .colon, to: [.openBrace])
 
                 let bodyTokens = try parseBraceGroup(&tokens)
-                let body = try pass1(.init(bodyTokens))
+                let body = try pass1(bodyTokens)
 
                 result.append(.traitDecl(name: String(name), refining: refiningList, body: body))
             case .productType:
@@ -136,7 +138,7 @@ extension SyntaxTree {
                 let name = try assertStarts(&tokens, with: [.identifier]).text
 
                 let bodyTokens = try parseBraceGroup(&tokens)
-                let body = try pass1(.init(bodyTokens))
+                let body = try pass1(bodyTokens)
 
                 result.append(.structDecl(name: String(name), body: body))
             case .impl:
@@ -147,7 +149,7 @@ extension SyntaxTree {
                 let traitList = try parseOptionalNonNested(&tokens, from: .colon, to: [.openBrace])
 
                 let bodyTokens = try parseBraceGroup(&tokens)
-                let body = try pass1(.init(bodyTokens))
+                let body = try pass1(bodyTokens)
 
                 result.append(.implBlock(type: String(name), traits: traitList, body: body))
             case .sumType:
@@ -167,7 +169,7 @@ extension SyntaxTree {
                 let returnType = try parseOptionalNonNested(&tokens, from: .colon, to: [.openBrace])
 
                 let bodyTokens = try parseBraceGroup(&tokens)
-                let body = try pass1(.init(bodyTokens))
+                let body = try pass1(bodyTokens)
 
                 result.append(.funcDecl(
                     name: String(name),
@@ -190,7 +192,7 @@ extension SyntaxTree {
                 let file = tokens.removeFirst() // 'return'
                     .startLoc.file
 
-                var exprTokens = Array<Lexer.Token>()
+                var exprTokens = Deque<Lexer.Token>()
                 while tokens.first?.kind != .semicolon {
                     guard let next = tokens.popFirst() else {
                         throw UnexpectedEOF(file: file)
@@ -208,7 +210,7 @@ extension SyntaxTree {
                 )
             default:
                 let file = first.startLoc.file
-                var exprTokens = Array<Lexer.Token>()
+                var exprTokens = Deque<Lexer.Token>()
                 while tokens.first?.kind != .semicolon {
                     guard let next = tokens.popFirst() else {
                         throw UnexpectedEOF(file: file)

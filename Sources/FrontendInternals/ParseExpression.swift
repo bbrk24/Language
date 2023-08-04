@@ -1,14 +1,17 @@
 import Algorithms
+import DequeModule
 
 extension SyntaxTree {
-    static func withoutTrivia(_ tokens: [Lexer.Token]) -> some BidirectionalCollection<Lexer.Token> {
+    static func withoutTrivia(
+        _ tokens: some BidirectionalCollection<Lexer.Token>
+    ) -> some BidirectionalCollection<Lexer.Token> {
         tokens.lazy
             .filter {
                 $0.kind != .blockComment && $0.kind != .lineComment && $0.kind != .whitespace
             }
     }
 
-    static func parseCommaSeparatedIdentifiers(_ tokens: [Lexer.Token]) throws -> [String] {
+    static func parseCommaSeparatedIdentifiers(_ tokens: Deque<Lexer.Token>) throws -> [String] {
         try withoutTrivia(tokens)
             .chunks(ofCount: 2)
             .map {
@@ -34,7 +37,7 @@ extension SyntaxTree {
         }
     }
 
-    static func parseArgumentList(_ tokens: [Lexer.Token]) throws -> [_NameAndType] {
+    static func parseArgumentDeclList(_ tokens: Deque<Lexer.Token>) throws -> [_NameAndType] {
         guard let lastToken = tokens.last else {
             return []
         }
@@ -44,7 +47,7 @@ extension SyntaxTree {
         var name: String? = nil
         var seenColon = false
         var bracketStack = Array<PairType>()
-        var currentExpression = Array<Lexer.Token>()
+        var currentExpression = Deque<Lexer.Token>()
 
         for token in withoutTrivia(tokens) {
             guard let typeName = name else {
@@ -143,19 +146,72 @@ extension SyntaxTree {
         }
     }
 
-    static func parseType(_ tokens: [Lexer.Token]) throws -> _Type {
-        // Type parsing is limited. Only the following expression kinds are allowed:
+    enum TypeParseError: Error {
+        case tooManyTypes
+        case dotWithoutProperty
+        case missingType
+    }
+
+    static func parseType(_ tokens: __owned Deque<Lexer.Token>) throws -> _Type {
+        let list = try parseTypeList(tokens)
+        guard list.count == 1 else {
+            throw TypeParseError.tooManyTypes
+        }
+        return list[0]
+    }
+
+    static func parseFullExpression(_ tokens: __owned Deque<Lexer.Token>) throws -> Expression {
+        let balanced = try parseBalancedExpr(tokens)
+        let funcCallParsed = try parseFunctionApplications(balanced)
+        return try shuntingYard(funcCallParsed)
+    }
+
+    static func parseTypeList(_ tokens: __owned Deque<Lexer.Token>) throws -> [_Type] {
+                // Type parsing is limited. Only the following expression kinds are allowed:
         // Identifier - Foo
         // Index access - Foo[Bar] OR Foo[Bar, Baz]
         // Property access - Foo.Bar
-        notImplemented()
-    }
+        var tokens = tokens
+        var result: [_Type?] = [nil]
 
-    static func parseFullExpression(_ tokens: [Lexer.Token]) throws -> Expression {
-        notImplemented()
-    }
+        while let next = tokens.first {
+            switch next.kind {
+            case .identifier:
+                guard case .some(.none) = result.popLast() else {
+                    throw UnexpectedToken(found: next, expected: [.leftBracket, .rightBracket, .dot, .comma])
+                }
+                result.append(.identifier(String(next.text)))
+                tokens.removeFirst() // Name
+            case .dot:
+                guard case let oldResult?? = result.popLast() else {
+                    throw UnexpectedToken(found: next, expected: [.identifier])
+                }
+                guard tokens.count > 1,
+                      tokens[1].kind == .identifier else {
+                    throw TypeParseError.dotWithoutProperty
+                }
+                result.append(.dot(oldResult, String(tokens[1].text)))
+                tokens.removeFirst(2) // '.', Property
+            case .leftBracket:
+                guard case let oldResult?? = result.popLast() else {
+                    throw UnexpectedToken(found: next, expected: [.identifier])
+                }
+                let argumentTokens = try parseBracketGroup(&tokens)
+                let argumentList = try parseTypeList(argumentTokens)
+                result.append(.generic(oldResult, argumentList))
+            case .comma:
+                tokens.removeFirst() // ','
+                result.append(nil)
+            default:
+                throw UnexpectedToken(found: next, expected: [.identifier, .dot, .leftBracket])
+            }
+        }
 
-    static func parseTypeList(_ tokens: [Lexer.Token]) throws -> [_Type] {
-        notImplemented()
+        return try result.map {
+            guard let type = $0 else {
+                throw TypeParseError.missingType
+            }
+            return type
+        }
     }
 }

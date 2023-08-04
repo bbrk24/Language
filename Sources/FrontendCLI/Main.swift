@@ -23,16 +23,16 @@ public struct Main: ParsableCommand {
 
         let tokens = try Lexer.lex(source: sourceText, fileName: sourceFile ?? "<stdin>")
 
-        switch mode {
-        case .dumpTokens:
+        if mode == .dumpTokens {
             let result = try JSONEncoder().encode(tokens)
             try FileHandle.standardOutput.write(contentsOf: result)
             print()
-        case .dumpAst:
-            let statements = try SyntaxTree.parse(tokens)
-            let result = try JSONEncoder().encode(statements)
-            try FileHandle.standardOutput.write(contentsOf: result)
-            print()
+            return
         }
+
+        let statements = try SyntaxTree.parse(tokens)
+        let result = try JSONEncoder().encode(statements)
+        try FileHandle.standardOutput.write(contentsOf: result)
+        print()
     }
 }

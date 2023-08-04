@@ -1,3 +1,5 @@
+import DequeModule
+
 public enum SyntaxTree {
     public indirect enum Expression: Codable {
         case binOp(_BinaryOperator, lhs: Expression, rhs: Expression)
@@ -58,10 +60,36 @@ public enum SyntaxTree {
         case `var`(name: String, type: _Type?, initialValue: Expression?)
     }
 
-    public enum _Type: Codable {
+    public enum _Type: Codable, TextOutputStreamable {
         case identifier(String)
         indirect case dot(_Type, String)
         indirect case generic(_Type, [_Type])
+
+        public func write<Target: TextOutputStream>(to target: inout Target) {
+            switch self {
+            case .identifier(let name):
+                target.write(name)
+            case .dot(let base, let property):
+                base.write(to: &target)
+                target.write(".")
+                target.write(property)
+            case .generic(let base, let args):
+                base.write(to: &target)
+                target.write("[")
+
+                var first = true
+                for arg in args {
+                    if !first {
+                        target.write(", ")
+                    }
+                    first = false
+
+                    arg.write(to: &target)
+                }
+
+                target.write("]")
+            }
+        }
     }
 
     public struct _NameAndType: Codable {
@@ -69,7 +97,7 @@ public enum SyntaxTree {
         var type: _Type
     }
 
-    public static func parse(_ tokens: __owned Lexer.TokenCollection) throws -> [Statement] {
+    public static func parse(_ tokens: Deque<Lexer.Token>) throws -> [Statement] {
         let file = tokens.first?.startLoc.file
         var partialResult: [PartiallyParsedStatement]
         do {
@@ -106,7 +134,7 @@ public enum SyntaxTree {
             case .funcDecl(name: let name, parameters: let parameters, returnType: let returnType, body: let body):
                 result.append(.declaration(.func(
                     name: name,
-                    parameters: try parseArgumentList(parameters),
+                    parameters: try parseArgumentDeclList(parameters),
                     returnType: returnType.isEmpty ? nil : try parseType(returnType),
                     body: try pass2(body)
                 )))
@@ -145,7 +173,7 @@ public enum SyntaxTree {
         }
     }
 
-    private static func parseDeclsOnly(_ statements: [PartiallyParsedStatement]) throws -> [_Declaration] {
+    static func parseDeclsOnly(_ statements: [PartiallyParsedStatement]) throws -> [_Declaration] {
         return try pass2(statements).map {
             switch $0 {
             case .declaration(let decl):
