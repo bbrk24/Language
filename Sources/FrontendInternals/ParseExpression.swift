@@ -118,34 +118,6 @@ extension SyntaxTree {
         return pairs.map { .init(name: $0, type: $1) }
     }
 
-    struct IncompleteType: Error {}
-
-    enum PartlyParsedType {
-        case comma
-        case identifier(String)
-        indirect case indexed(PartlyParsedType, [PartlyParsedType])
-        indirect case propertyAccess(PartlyParsedType, String?)
-
-        func toExpr() throws -> Expression {
-            switch self {
-            case .comma:
-                throw IncompleteType()
-            case .identifier(let name):
-                return .indivisible(.identifier(name))
-            case .indexed(let base, let indexes):
-                return try .indexAccess(
-                    base: base.toExpr(),
-                    index: indexes.map { try $0.toExpr() }
-                )
-            case .propertyAccess(let base, let property):
-                guard let property else {
-                    throw IncompleteType()
-                }
-                return .propertyAccess(base: try base.toExpr(), property: property)
-            }
-        }
-    }
-
     enum TypeParseError: Error {
         case tooManyTypes
         case dotWithoutProperty
@@ -162,12 +134,12 @@ extension SyntaxTree {
 
     static func parseFullExpression(_ tokens: __owned Deque<Lexer.Token>) throws -> Expression {
         let balanced = try parseBalancedExpr(tokens)
-        let funcCallParsed = try parseFunctionApplications(balanced)
-        return try shuntingYard(funcCallParsed)
+        let callAccessParsed = try parseCallsAndAccesses(balanced)
+        return try shuntingYard(callAccessParsed)
     }
 
     static func parseTypeList(_ tokens: __owned Deque<Lexer.Token>) throws -> [_Type] {
-                // Type parsing is limited. Only the following expression kinds are allowed:
+        // Type parsing is limited. Only the following expression kinds are allowed:
         // Identifier - Foo
         // Index access - Foo[Bar] OR Foo[Bar, Baz]
         // Property access - Foo.Bar

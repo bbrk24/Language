@@ -92,8 +92,8 @@ extension SyntaxTree {
             preconditionFailure()
         }
 
-        guard start.kind == .openParen else {
-            throw UnexpectedToken(found: start, expected: [.openParen])
+        guard start.kind != .openBrace else {
+            throw UnexpectedToken(found: start, expected: [.openParen, .leftBracket])
         }
 
         var result: [[BalancedExpr]] = [[]]
@@ -105,8 +105,11 @@ extension SyntaxTree {
                 case .comma:
                     result.append([])
                     continue
-                case .closeBrace, .rightBracket:
-                    throw UnexpectedToken(found: token, expected: [.closeParen, .comma])
+                case .closeBrace, .rightBracket, .closeParen:
+                    throw UnexpectedToken(
+                        found: token,
+                        expected: [.comma, start.kind == .openParen ? .closeParen : .rightBracket]
+                    )
                 default:
                     break
                 }
@@ -124,14 +127,16 @@ extension SyntaxTree {
         case token(Lexer.Token)
         case group(start: Lexer.Token, body: [PartiallyParsedExpr])
         indirect case functionApplication(function: PartiallyParsedExpr, args: [[PartiallyParsedExpr]])
+        indirect case indexAccess(base: PartiallyParsedExpr, index: [[PartiallyParsedExpr]])
+        indirect case propertyAccess(base: PartiallyParsedExpr, property: String)
     }
 
-    static func parseFunctionApplications(_ expr: BalancedExpr) throws -> PartiallyParsedExpr {
+    static func parseCallsAndAccesses(_ expr: BalancedExpr) throws -> PartiallyParsedExpr {
         switch expr {
         case .token(let token):
             return .token(token)
         case .group(start: let start, body: let innerExprs):
-            return .group(start: start, body: try parseFunctionApplications(innerExprs))
+            return .group(start: start, body: try parseCallsAndAccesses(innerExprs))
         }
     }
 
@@ -140,21 +145,30 @@ extension SyntaxTree {
         .minus, .star, .slash, .percent, .comma, .bang, .greater, .less
     ]
 
-    static func parseFunctionApplications<T: RandomAccessCollection>(_ exprs: T) throws -> [PartiallyParsedExpr]
+    static func parseCallsAndAccesses<T: RandomAccessCollection>(_ exprs: T) throws -> [PartiallyParsedExpr]
     where T.Element == BalancedExpr, T.Index == Int {
-        guard let firstOpenParenIdx = exprs.firstIndex(where: {
-            if case .group(start: let start, body: _) = $0 {
-                return start.kind == .openParen
+        let maybeCall: (BalancedExpr) -> Bool = {
+            switch $0 {
+            case .group(start: _, body: _):
+                return true
+            case .token(let token):
+                return token.kind == .dot
             }
-            return false
-        }) else {
-            return try exprs.map(parseFunctionApplications)
+        }
+        guard var idx = exprs.firstIndex(where: maybeCall) else {
+            return try exprs.map(parseCallsAndAccesses)
         }
 
         var isCall: Bool
-        if firstOpenParenIdx == exprs.startIndex {
-            isCall = false
-        } else if case .token(let token) = exprs[firstOpenParenIdx - 1] {
+        if idx == exprs.startIndex {
+            // Might start with a paren but then have a call after that, e.g. (print)(5)
+            if exprs.count > 1 && maybeCall(exprs[idx + 1]) {
+                idx += 1
+                isCall = true
+            } else {
+                isCall = false
+            }
+        } else if case .token(let token) = exprs[idx - 1] {
             switch token.kind {
             case .whitespace, .lineComment, .blockComment, .leftBracket, .openParen, .openBrace:
                 preconditionFailure("Token \(token) should have been filtered out during bracket balancing")
@@ -171,17 +185,47 @@ extension SyntaxTree {
 
         var result: [PartiallyParsedExpr]
         if isCall {
-            result = try exprs[..<(firstOpenParenIdx - 1)].map(parseFunctionApplications)
-            result.append(
-                PartiallyParsedExpr.functionApplication(
-                    function: try parseFunctionApplications(exprs[firstOpenParenIdx - 1]),
-                    args: try parseArgumentCallList(exprs[firstOpenParenIdx]).map(parseFunctionApplications)
-                )
-            )
+            result = try exprs[..<(idx - 1)].map(parseCallsAndAccesses)
+            var current = try parseCallsAndAccesses(exprs[idx - 1])
+            loop: while idx < exprs.endIndex {
+                switch exprs[idx] {
+                case .group(start: let token, body: _):
+                    switch token.kind {
+                    case .openParen:
+                        current = .functionApplication(
+                            function: current,
+                            args: try parseArgumentCallList(exprs[idx]).map(parseCallsAndAccesses)
+                        )
+                    case .leftBracket:
+                        current = .indexAccess(
+                            base: current,
+                            index: try parseArgumentCallList(exprs[idx]).map(parseCallsAndAccesses)
+                        )
+                    default:
+                        throw UnexpectedToken(found: token, expected: [.openParen, .leftBracket])
+                    }
+                    idx += 1
+                case .token(let token):
+                    guard token.kind == .dot else {
+                        break loop
+                    }
+                    guard idx + 1 < exprs.endIndex,
+                          case .token(let nextToken) = exprs[idx + 1] else {
+                        // Some kind of syntax error, but what?
+                        notImplemented()
+                    }
+                    guard nextToken.kind == .identifier else {
+                        throw UnexpectedToken(found: nextToken, expected: [.identifier])
+                    }
+                    current = .propertyAccess(base: current, property: String(nextToken.text))
+                    idx += 2
+                }
+            }
+            result.append(current)
         } else {
-            result = try exprs[...firstOpenParenIdx].map(parseFunctionApplications)
+            result = try exprs[..<idx].map(parseCallsAndAccesses)
         }
-        result.append(contentsOf: try parseFunctionApplications(exprs[(firstOpenParenIdx + 1)...]))
+        result.append(contentsOf: try parseCallsAndAccesses(exprs[idx...]))
 
         return result
     }
