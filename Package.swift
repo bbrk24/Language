@@ -4,9 +4,6 @@ import PackageDescription
 
 let package = Package(
     name: "language",
-    products: [
-        .library(name: "LanguageFrontendInternals", targets: ["LanguageFrontendInternals"])
-    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.2.2")),
         .package(url: "https://github.com/apple/swift-algorithms", .upToNextMajor(from: "1.0.0")),
