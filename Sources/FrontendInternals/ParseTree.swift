@@ -1,13 +1,13 @@
 import DequeModule
 
-public enum SyntaxTree {
+public enum ParseTree {
     public indirect enum Expression: Codable {
         case binOp(_BinaryOperator, lhs: Expression, rhs: Expression)
         case unaryOp(_UnaryOperator, Expression)
         case indivisible(_Indivisible)
         case indexAccess(base: Expression, index: [Expression])
         case propertyAccess(base: Expression, property: String)
-        case functionCall(function: String, arguments: [Expression])
+        case functionCall(function: Expression, arguments: [Expression])
     }
 
     public enum _Indivisible: Codable {
@@ -49,22 +49,25 @@ public enum SyntaxTree {
         case ifElse(condition: Expression, trueBody: [Statement], falseBody: [Statement])
         case `return`(Expression?)
         case expression(Expression)
-        case implBlock(type: String, traits: [_Type], body: [_Declaration])
+        case implBlock(type: String, traits: [TypeName], body: [_Declaration])
     }
 
     public enum _Declaration: Codable {
-        case trait(name: String, refining: [_Type], body: [_Declaration])
+        case trait(name: String, refining: [TypeName], body: [_Declaration])
         case `struct`(name: String, body: [_Declaration])
         case `enum`(name: String, body: [String])
-        case `func`(name: String, parameters: [_NameAndType], returnType: _Type?, body: [Statement])
-        case `var`(name: String, type: _Type?, initialValue: Expression?)
+        case `func`(name: String, parameters: [NameAndType], returnType: TypeName?, body: [Statement])
+        case `var`(name: String, type: TypeName?, initialValue: Expression?)
     }
 
-    public enum _Type: Codable, TextOutputStreamable {
+    public enum TypeName: Codable, Equatable, TextOutputStreamable {
         case identifier(String)
-        indirect case dot(_Type, String)
-        indirect case generic(_Type, [_Type])
+        indirect case dot(TypeName, String)
+        indirect case generic(TypeName, [TypeName])
 
+        internal static let placeholder = TypeName.identifier("<#indeterminate#>")
+
+        @inlinable // generic
         public func write<Target: TextOutputStream>(to target: inout Target) {
             switch self {
             case .identifier(let name):
@@ -92,9 +95,9 @@ public enum SyntaxTree {
         }
     }
 
-    public struct _NameAndType: Codable {
+    public struct NameAndType: Codable {
         var name: String
-        var type: _Type
+        var type: TypeName
     }
 
     public static func parse(_ tokens: Deque<Lexer.Token>) throws -> [Statement] {

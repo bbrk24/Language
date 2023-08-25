@@ -1,6 +1,6 @@
 import DequeModule
 
-extension SyntaxTree {
+extension ParseTree {
     struct UnexpectedEOF: Error, CustomStringConvertible {
         var file: String?
 

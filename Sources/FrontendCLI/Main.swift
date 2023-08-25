@@ -30,7 +30,7 @@ public struct Main: ParsableCommand {
             return
         }
 
-        let statements = try SyntaxTree.parse(tokens)
+        let statements = try ParseTree.parse(tokens)
         let result = try JSONEncoder().encode(statements)
         try FileHandle.standardOutput.write(contentsOf: result)
         print()

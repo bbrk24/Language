@@ -1,7 +1,7 @@
 import Algorithms
 import DequeModule
 
-extension SyntaxTree {
+extension ParseTree {
     static func withoutTrivia(
         _ tokens: some BidirectionalCollection<Lexer.Token>
     ) -> some BidirectionalCollection<Lexer.Token> {
@@ -37,12 +37,12 @@ extension SyntaxTree {
         }
     }
 
-    static func parseArgumentDeclList(_ tokens: Deque<Lexer.Token>) throws -> [_NameAndType] {
+    static func parseArgumentDeclList(_ tokens: Deque<Lexer.Token>) throws -> [NameAndType] {
         guard let lastToken = tokens.last else {
             return []
         }
 
-        var pairs = Array<(String, _Type)>()
+        var pairs = Array<(String, TypeName)>()
 
         var name: String? = nil
         var seenColon = false
@@ -124,7 +124,7 @@ extension SyntaxTree {
         case missingType
     }
 
-    static func parseType(_ tokens: __owned Deque<Lexer.Token>) throws -> _Type {
+    static func parseType(_ tokens: __owned Deque<Lexer.Token>) throws -> TypeName {
         let list = try parseTypeList(tokens)
         guard list.count == 1 else {
             throw TypeParseError.tooManyTypes
@@ -138,13 +138,13 @@ extension SyntaxTree {
         return try shuntingYard(callAccessParsed)
     }
 
-    static func parseTypeList(_ tokens: __owned Deque<Lexer.Token>) throws -> [_Type] {
+    static func parseTypeList(_ tokens: __owned Deque<Lexer.Token>) throws -> [TypeName] {
         // Type parsing is limited. Only the following expression kinds are allowed:
         // Identifier - Foo
         // Index access - Foo[Bar] OR Foo[Bar, Baz]
         // Property access - Foo.Bar
         var tokens = tokens
-        var result: [_Type?] = [nil]
+        var result: [TypeName?] = [nil]
 
         while let next = tokens.first {
             switch next.kind {

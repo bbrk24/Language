@@ -10,7 +10,7 @@ where Element == Lexer.Token {
     }
 }
 
-extension SyntaxTree {
+extension ParseTree {
     /// A statement that is partially parsed based on its first token.
     enum PartiallyParsedStatement {
         typealias Token = Lexer.Token
